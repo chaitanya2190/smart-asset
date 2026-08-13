@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Asset Checkout System — Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #F5EFE0;
+      --paper-mid: #EDE5CE;
+      --paper-dark: #E2D8C0;
+      --ink: #1C1814;
+      --ink-mid: #4A4035;
+      --ink-soft: #7A6E5F;
+      --kraft: #B07D3A;
+      --kraft-light: rgba(176,125,58,0.18);
+      --red: #8B2A1E;
+      --green: #2A5C3A;
+      --blue: #1E3A5F;
+      --sidebar-w: 260px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--paper-dark);
+      color: var(--ink);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Paper grain overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background-image:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      background-size: 180px;
+      opacity: 0.6;
+    }
+
+    /* ===== SIDEBAR NAV ===== */
+    aside {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--ink);
+      color: var(--paper);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      z-index: 100;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+    }
+
+    .sidebar-header {
+      padding: 28px 22px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar-header .project-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--kraft);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .sidebar-header h1 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: 1.3;
+      color: var(--paper);
+    }
+
+    nav {
+      padding: 16px 0;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    nav .section-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      padding: 14px 22px 6px;
+    }
+
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 22px;
+      color: rgba(255,255,255,0.65);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 400;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+
+    nav a .nav-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--kraft);
+      flex-shrink: 0;
+      width: 22px;
+    }
+
+    nav a:hover {
+      color: var(--paper);
+      background: rgba(255,255,255,0.05);
+      border-left-color: var(--kraft);
+    }
+
+    nav a.active {
+      color: var(--paper);
+      background: rgba(176,125,58,0.15);
+      border-left-color: var(--kraft);
+    }
+
+    .sidebar-footer {
+      padding: 16px 22px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.06em;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 56px 64px;
+      max-width: 900px;
+    }
+
+    /* ===== DOCUMENT SECTIONS ===== */
+    .doc-section {
+      margin-bottom: 100px;
+      padding-top: 16px;
+    }
+
+    .doc-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 36px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--ink);
+      position: relative;
+    }
+
+    .doc-number {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 3.5rem;
+      font-weight: 600;
+      color: var(--paper-mid);
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 4px;
+      user-select: none;
+    }
+
+    .doc-header-text {
+      flex: 1;
+    }
+
+    .doc-eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--kraft);
+      margin-bottom: 6px;
+    }
+
+    .doc-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      line-height: 1.1;
+    }
+
+    .doc-subtitle {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--ink-soft);
+      margin-top: 6px;
+    }
+
+    /* ===== HEADING STYLES ===== */
+    .content h2 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink);
+      margin: 40px 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--paper-dark);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .content h2::before {
+      content: attr(data-num);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--kraft);
+      background: var(--kraft-light);
+      padding: 2px 7px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .content h3 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-mid);
+      margin: 26px 0 10px;
+    }
+
+    .content p {
+      font-family: 'Lora', serif;
+      font-size: 0.97rem;
+      line-height: 1.75;
+      color: var(--ink-mid);
+      margin-bottom: 14px;
+      max-width: 720px;
+    }
+
+    /* ===== LISTS ===== */
+    .content ul, .content ol {
+      padding-left: 0;
+      list-style: none;
+      max-width: 720px;
+    }
+
+    .content ol { counter-reset: step; }
+
+    .content ul li, .content ol li {
+      font-family: 'Lora', serif;
+      font-size: 0.96rem;
+      line-height: 1.65;
+      color: var(--ink-mid);
+      padding: 8px 0 8px 28px;
+      border-bottom: 1px dashed var(--paper-dark);
+      position: relative;
+    }
+
+    .content ul li::before {
+      content: "▸";
+      position: absolute;
+      left: 4px;
+      color: var(--kraft);
+      font-size: 0.8rem;
+      top: 10px;
+    }
+
+    .content ol li {
+      counter-increment: step;
+    }
+
+    .content ol li::before {
+      content: counter(step, decimal-leading-zero);
+      position: absolute;
+      left: 0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--kraft);
+      font-weight: 600;
+      top: 10px;
+    }
+
+    .content li strong {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .content li:last-child { border-bottom: none; }
+
+    /* Nested list */
+    .content ul ul {
+      padding-left: 20px;
+      margin-top: 4px;
+    }
+
+    .content ul ul li {
+      font-size: 0.88rem;
+      border-bottom: none;
+      padding: 3px 0 3px 24px;
+    }
+
+    .content ul ul li::before {
+      content: "—";
+      font-size: 0.7rem;
+    }
+
+    /* ===== TABLE ===== */
+    .content table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 20px 0;
+    }
+
+    .content thead tr {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .content thead th {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 11px 16px;
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .content tbody tr {
+      border-bottom: 1px solid var(--paper-dark);
+      transition: background 0.12s;
+    }
+
+    .content tbody tr:hover { background: var(--paper-mid); }
+
+    .content tbody td {
+      font-family: 'Lora', serif;
+      padding: 11px 16px;
+      color: var(--ink-mid);
+      vertical-align: top;
+    }
+
+    .content tbody td:first-child {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* ===== CODE BLOCKS ===== */
+    .content pre {
+      background: var(--ink);
+      color: #C9C0B0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.65;
+      padding: 22px 24px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 20px 0;
+      position: relative;
+      max-width: 760px;
+    }
+
+    .content pre .lang-tag {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--kraft);
+      opacity: 0.8;
+    }
+
+    .content code {
+      background: var(--paper-mid);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.82rem;
+      padding: 2px 6px;
+      border-radius: 2px;
+      color: var(--blue);
+    }
+
+    .content pre code {
+      background: none;
+      padding: 0;
+      border-radius: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .kw { color: #E8A87C; }
+    .str { color: #A8D8A8; }
+    .cmt { color: #7A7060; font-style: italic; }
+    .num { color: #C8A0D8; }
+
+    /* ===== CALLOUT BOXES ===== */
+    .callout {
+      border-left: 4px solid var(--kraft);
+      background: var(--kraft-light);
+      padding: 14px 18px;
+      margin: 20px 0;
+      max-width: 720px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout.red { border-left-color: var(--red); background: rgba(139,42,30,0.08); }
+    .callout.green { border-left-color: var(--green); background: rgba(42,92,58,0.08); }
+    .callout.blue { border-left-color: var(--blue); background: rgba(30,58,95,0.08); }
+
+    .callout .callout-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .callout.red .callout-label { color: var(--red); }
+    .callout.green .callout-label { color: var(--green); }
+    .callout.blue .callout-label { color: var(--blue); }
+    .callout .callout-label:not([class]) { color: var(--kraft); }
+
+    .callout p {
+      font-size: 0.9rem;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    /* ===== STAMP / BADGE ===== */
+    .stamp-badge {
+      display: inline-block;
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 2.5px solid currentColor;
+      padding: 4px 12px;
+      border-radius: 3px;
+      transform: rotate(-2deg);
+      display: inline-block;
+      margin: 8px 0;
+    }
+
+    .stamp-badge.red { color: var(--red); }
+    .stamp-badge.green { color: var(--green); }
+    .stamp-badge.blue { color: var(--blue); }
+
+    /* ===== AI CHANGE LOOP FLOW ===== */
+    .loop-flow {
+      display: grid;
+      grid-template-columns: 1fr 32px 1fr 32px 1fr;
+      gap: 0;
+      margin: 24px 0;
+      max-width: 720px;
+      align-items: center;
+    }
+
+    .loop-step {
+      background: var(--paper-mid);
+      border: 1px solid var(--paper-dark);
+      padding: 18px 16px;
+    }
+
+    .loop-step .step-n {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--kraft);
+      margin-bottom: 6px;
+    }
+
+    .loop-step h4 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+
+    .loop-step p {
+      font-size: 0.8rem !important;
+      line-height: 1.5 !important;
+      margin: 0 !important;
+    }
+
+    .loop-arrow {
+      text-align: center;
+      font-size: 1.1rem;
+      color: var(--kraft);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* ===== VIDEO SCRIPT ===== */
+    .script-part {
+      background: var(--paper-mid);
+      border: 1px solid var(--paper-dark);
+      border-radius: 4px;
+      margin: 20px 0;
+      overflow: hidden;
+      max-width: 720px;
+    }
+
+    .script-part-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 10px 18px;
+    }
+
+    .script-part-header .part-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .script-part-header .part-time {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--kraft);
+      letter-spacing: 0.06em;
+    }
+
+    .script-part-body { padding: 16px 18px; }
+
+    .script-visual {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--blue);
+      background: rgba(30,58,95,0.08);
+      border: 1px solid rgba(30,58,95,0.15);
+      padding: 7px 12px;
+      border-radius: 3px;
+      margin-bottom: 10px;
+    }
+
+    .script-visual::before {
+      content: "▸ VISUAL: ";
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .script-text {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      color: var(--ink-mid);
+      border-left: 3px solid var(--kraft);
+      padding-left: 14px;
+      margin: 10px 0 0;
+    }
+
+    .script-breakdown {
+      list-style: none;
+      margin-top: 10px;
+    }
+
+    .script-breakdown li {
+      font-family: 'Lora', serif;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--ink-mid);
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--paper-dark);
+      padding-left: 0 !important;
+    }
+
+    .script-breakdown li::before { display: none !important; }
+
+    .script-breakdown li .time-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.68rem;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 2px 7px;
+      border-radius: 2px;
+      margin-right: 8px;
+      display: inline-block;
+    }
+
+    .script-breakdown li strong {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* ===== DIVIDER ===== */
+    .section-rule {
+      border: none;
+      border-top: 1px dashed var(--ink-soft);
+      margin: 60px 0;
+      opacity: 0.2;
+    }
+
+    /* ===== SCROLLSPY ===== */
+    @media (max-width: 900px) {
+      aside { display: none; }
+      main { margin-left: 0; padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside>
+    <div class="sidebar-header">
+      <span class="project-tag">Tactive Assessment</span>
+      <h1>Smart Asset<br>Checkout Log</h1>
+    </div>
+
+    <nav>
+      <div class="section-label">Documents</div>
+      <a href="#architecture">
+        <span class="nav-num">01</span>Architecture
+      </a>
+      <a href="#design">
+        <span class="nav-num">02</span>Design & API
+      </a>
+      <a href="#ai-loop">
+        <span class="nav-num">03</span>AI Change Loop
+      </a>
+      <a href="#video-script">
+        <span class="nav-num">04</span>Video Script
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      FILED FOR REVIEW · 2026
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main>
+
+    <!-- ======================================= -->
+    <!-- DOC 1: ARCHITECTURE                     -->
+    <!-- ======================================= -->
+    <section id="architecture" class="doc-section">
+      <div class="doc-header">
+        <div class="doc-number">01</div>
+        <div class="doc-header-text">
+          <div class="doc-eyebrow">Stage 4 · Architecture Document</div>
+          <div class="doc-title">System Architecture</div>
+          <div class="doc-subtitle">How the layers are arranged and why each decision was made</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <h2 data-num="1.0">System Overview</h2>
+        <p>
+          The <strong>Smart Corporate Equipment &amp; Asset Reservation System</strong> is designed to manage
+          high-value asset checkout processes with strict governance and automated rule enforcement.
+          It is a lightweight, responsive web application combining a clean REST API backend with a
+          modern HTML5 / Vanilla CSS frontend styled as a physical inventory ledger.
+        </p>
+
+        <h2 data-num="2.0">System Components</h2>
+        <ul>
+          <li>
+            <strong>Frontend UI — Presentation Layer</strong><br>
+            Built with Vanilla HTML5, CSS3 (Glassmorphism / ledger aesthetics), and JavaScript.
+            Responsible for rendering real-time asset availability, handling user input, client-side validation,
+            and asynchronously fetching data from the API.
+          </li>
+          <li>
+            <strong>API Server — Application Layer</strong><br>
+            Node.js backend using Express.js. Handles core business logic, input sanitisation,
+            security validation (XSS / injection checks), rate-limiting, and RESTful routing.
+          </li>
+          <li>
+            <strong>Data Store — Data Layer</strong><br>
+            An encapsulated module (<code>database.js</code>) backed by flat CSV files
+            (<code>assets.csv</code> / <code>reservations.csv</code>) via <code>csv-parse</code>
+            and <code>csv-stringify</code>. Provides decoupled <em>create</em>, <em>find</em>, and
+            <em>cancel</em> operations. CSV storage was deliberately chosen so that reviewers can
+            inspect the data directly in Excel without any database provisioning.
+          </li>
+        </ul>
+
+        <h2 data-num="3.0">Data Flow</h2>
+        <ol>
+          <li><strong>User Action</strong> — the user selects an asset and submits a reservation date range via the UI.</li>
+          <li><strong>Client Validation</strong> — the frontend checks that dates are valid (start ≥ today, end &gt; start).</li>
+          <li><strong>API Request</strong> — a <code>POST</code> request with <code>assetId</code>, <code>userId</code>, <code>startDate</code>, and <code>endDate</code> is sent to the backend.</li>
+          <li><strong>Server Validation</strong> — the server validates constraints:
+            <ul>
+              <li>Is it in the past?</li>
+              <li>Is it XSS / SQL-injection safe?</li>
+              <li>Does it overlap with existing reservations for that asset?</li>
+              <li>Does the duration exceed the asset's max limit?</li>
+              <li>Does it exceed the user's active quota?</li>
+            </ul>
+          </li>
+          <li><strong>Data Mutation</strong> — if valid, the Data Store creates a reservation record and assigns an ID and <code>APPROVED</code> (or <code>PENDING_APPROVAL</code>) status.</li>
+          <li><strong>Response</strong> — server responds with <code>201 Created</code> and the new object.</li>
+          <li><strong>UI Update</strong> — the frontend displays a success toast and reloads the active reservations view.</li>
+        </ol>
+
+        <h2 data-num="4.0">Technology Choices</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Technology</th>
+              <th>Choice</th>
+              <th>Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Backend</td>
+              <td>Node.js + Express</td>
+              <td>Fast scaffolding, non-blocking I/O ideal for API servers, universally understood.</td>
+            </tr>
+            <tr>
+              <td>Frontend</td>
+              <td>Vanilla JS / HTML / CSS</td>
+              <td>Eliminates build steps; code runs directly from the browser without compilation.</td>
+            </tr>
+            <tr>
+              <td>Testing</td>
+              <td>Jest + Supertest</td>
+              <td>Robust assertion and mocking library; Supertest allows HTTP endpoint testing without a live port.</td>
+            </tr>
+            <tr>
+              <td>Architecture</td>
+              <td>Monolithic MVC-like</td>
+              <td>Single repository with separated routing, logic, and data layers — the right balance for this scope without over-engineering.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 data-num="5.0">Trade-offs &amp; Known Limitations</h2>
+
+        <h3>CSV-Backed Persistence</h3>
+        <p>The application uses <code>database.js</code> backed by flat CSV files instead of a relational DB.
+        This allows reviewers to instantly inspect live data in Excel or Google Sheets, fitting the ledger theme.
+        To prevent data corruption under concurrent load (e.g., the rate-limit stress tests), the architecture uses
+        an <strong>asynchronous write queue</strong> and <strong>atomic file rename operations</strong>
+        (<code>fs.renameSync</code>) — writing to a <code>.tmp</code> file first and flipping it over the real file,
+        so a mid-write crash cannot produce a half-written, unparseable CSV.</p>
+
+        <div class="callout blue">
+          <div class="callout-label">File Isolation</div>
+          <p>When <code>NODE_ENV=test</code>, the database module targets <code>test-assets.csv</code> and
+          <code>test-reservations.csv</code> so running the Jest suite never blows away your live demo data.</p>
+        </div>
+
+        <h3>Authentication</h3>
+        <p>Roles (<code>?role=admin</code>) and the Login Screen are purely frontend constructs to facilitate
+        demo flows. <strong>Anyone can type any name and check the Admin box without cryptographic verification.</strong>
+        This is an intentional simplification. The backend continues to strictly validate and sanitise all
+        payloads, rejecting XSS patterns and blank names regardless of role.</p>
+      </div>
+    </section>
+
+    <hr class="section-rule">
+
+    <!-- ======================================= -->
+    <!-- DOC 2: DESIGN                           -->
+    <!-- ======================================= -->
+    <section id="design" class="doc-section">
+      <div class="doc-header">
+        <div class="doc-number">02</div>
+        <div class="doc-header-text">
+          <div class="doc-eyebrow">Stage 4 · Design Document</div>
+          <div class="doc-title">API Design &amp; Data Models</div>
+          <div class="doc-subtitle">Data shapes, validation lifecycle, and error contract</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <h2 data-num="1.0">Data Models</h2>
+
+        <h3>Asset</h3>
+        <p>Represents an inventoriable piece of corporate equipment.</p>
+        <ul>
+          <li><code>id</code> <strong>(String)</strong> — Unique identifier, e.g. <code>"A1"</code></li>
+          <li><code>name</code> <strong>(String)</strong> — Display name of the equipment</li>
+          <li><code>category</code> <strong>(String)</strong> — Grouping category: <code>Computing</code>, <code>Photography</code>, <code>Displays</code>, <code>Misc</code></li>
+          <li><code>status</code> <strong>(Enum)</strong> — <code>AVAILABLE</code> or <code>MAINTENANCE</code></li>
+          <li><code>maxDuration</code> <strong>(Integer)</strong> — Maximum allowed checkout duration in days</li>
+        </ul>
+
+        <h3>Reservation</h3>
+        <p>Represents a user's booking for an asset.</p>
+        <ul>
+          <li><code>id</code> <strong>(String)</strong> — Auto-incremented ID, e.g. <code>"R1"</code></li>
+          <li><code>assetId</code> <strong>(String)</strong> — Foreign key to the Asset</li>
+          <li><code>userId</code> <strong>(String)</strong> — Name &amp; registration of the person who booked</li>
+          <li><code>startDate</code> <strong>(Date)</strong> — Start date of checkout (stored as ISO string in CSV)</li>
+          <li><code>endDate</code> <strong>(Date)</strong> — End date of checkout</li>
+          <li><code>status</code> <strong>(Enum)</strong> — <code>APPROVED</code>, <code>PENDING_APPROVAL</code>, <code>CANCELLED</code>, <code>RETURNED</code></li>
+          <li><code>createdAt</code> <strong>(Date)</strong> — Timestamp of creation</li>
+        </ul>
+
+        <h2 data-num="2.0">API Endpoints</h2>
+
+        <h3>GET /api/assets</h3>
+        <p>Retrieve the full catalog of assets, including their current status.</p>
+        <p><strong>Response:</strong> <code>200 OK</code> — Array of <code>Asset</code> objects.</p>
+
+        <h3>POST /api/assets</h3>
+        <p>Create a new asset in the inventory.</p>
+        <p><strong>Payload:</strong> <code>{ "name": "...", "category": "...", "maxDuration": 14 }</code></p>
+        <p><strong>Response:</strong> <code>201 Created</code> with the created <code>Asset</code> object.</p>
+
+        <h3>DELETE /api/assets/:id</h3>
+        <p>Permanently remove an asset from the inventory.</p>
+        <p><strong>Response:</strong> <code>200 OK</code> or <code>404 Not Found</code>.</p>
+
+        <h3>PATCH /api/assets/:id/maintenance</h3>
+        <p>Toggle an asset's status between <code>AVAILABLE</code> and <code>MAINTENANCE</code>.</p>
+        <p><strong>Response:</strong> <code>200 OK</code> with updated <code>Asset</code> object.</p>
+
+        <h3>GET /api/assets/:id/history</h3>
+        <p>Retrieve the full reservation history for a given asset, sorted newest-first.</p>
+        <p><strong>Response:</strong> <code>200 OK</code> — Array of <code>Reservation</code> objects, or <code>404</code> if asset does not exist.</p>
+
+        <h3>POST /api/reservations</h3>
+        <p>Create a new reservation. This is the primary business-logic endpoint — every request passes through a multi-stage validation gauntlet.</p>
+        <p><strong>Payload:</strong> <code>{ "assetId": "A1", "userId": "NAME-REG123", "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }</code></p>
+        <p><strong>Success Response:</strong> <code>201 Created</code> with the <code>Reservation</code> object (status will be either <code>APPROVED</code> or <code>PENDING_APPROVAL</code>).</p>
+
+        <h3>POST /api/reservations/:id/cancel</h3>
+        <p>Cancel an active reservation, freeing the asset for other users.</p>
+        <p><strong>Response:</strong> <code>200 OK</code> <code>{ "message": "Reservation cancelled successfully." }</code></p>
+
+        <h2 data-num="3.0">Reservation Validation Lifecycle</h2>
+        <p>The <code>POST /api/reservations</code> endpoint acts as a strict security and business-logic gatekeeper. Each stage gates the next — a request must pass all of them before a record is created.</p>
+
+        <div class="callout blue">
+          <div class="callout-label">Validation Order</div>
+          <p>XSS Safety → Date Validity → Maintenance Check → Duration Cap → Quota Check → Overlap Check → Save</p>
+        </div>
+
+        <ul>
+          <li><strong>XSS / Injection Safety</strong> — rejects payloads containing <code>'</code> <code>"</code> <code>&lt;</code> <code>&gt;</code> <code>;</code></li>
+          <li><strong>Date Validity</strong> — rejects past dates and invalid ranges (end ≤ start)</li>
+          <li><strong>Maintenance Check</strong> — rejects requests for assets currently in maintenance</li>
+          <li><strong>Duration Cap</strong> — rejects requests where (endDate − startDate) exceeds <code>asset.maxDuration</code></li>
+          <li><strong>Quota Check</strong> — if the user already has 2 active reservations, the new one is created with status <code>PENDING_APPROVAL</code> rather than failing</li>
+          <li><strong>Overlap Check</strong> — rejects requests where the asset is already booked for the requested dates</li>
+          <li><strong>Rate Limiting</strong> — the endpoint is rate-limited to 50 requests per minute per IP</li>
+        </ul>
+
+        <h2 data-num="4.0">Error Handling Matrix</h2>
+        <p>All errors return a consistent JSON envelope: <code>{"error": "Description"}</code></p>
+        <table>
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>HTTP Status</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Missing required fields</td><td>400</td><td>"Missing required fields."</td></tr>
+            <tr><td>Script injection in userId</td><td>400</td><td>"Invalid characters in user ID/Name."</td></tr>
+            <tr><td>End date before Start date</td><td>400</td><td>"End date must be strictly after start date."</td></tr>
+            <tr><td>Booking in the past</td><td>400</td><td>"Cannot book in the past."</td></tr>
+            <tr><td>Asset in maintenance</td><td>400</td><td>"Asset is currently in maintenance."</td></tr>
+            <tr><td>Duration exceeds maxDuration</td><td>400</td><td>"Exceeds maximum duration of X days."</td></tr>
+            <tr><td>Date overlap / double-booking</td><td>409</td><td>"Asset is already reserved for the requested dates."</td></tr>
+            <tr><td>Rate limit exceeded</td><td>429</td><td>"Too many reservation requests."</td></tr>
+            <tr><td>Asset not found</td><td>404</td><td>"Asset not found."</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <hr class="section-rule">
+
+    <!-- ======================================= -->
+    <!-- DOC 3: AI CHANGE LOOP                   -->
+    <!-- ======================================= -->
+    <section id="ai-loop" class="doc-section">
+      <div class="doc-header">
+        <div class="doc-number">03</div>
+        <div class="doc-header-text">
+          <div class="doc-eyebrow">Stage 3 · AI Change Loop Evidence</div>
+          <div class="doc-title">AI-Assisted Change Loop</div>
+          <div class="doc-subtitle">Feature request → regression → self-correction, documented end-to-end</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <h2 data-num="1.0">Feature Request</h2>
+        <div class="callout blue">
+          <div class="callout-label">The Prompt Given to the AI</div>
+          <p>"When a user exceeds their quota of 2 active reservations, instead of returning a 400 Bad Request error, create the reservation but set its status to <strong>PENDING_APPROVAL</strong> for admin review."</p>
+        </div>
+
+        <h2 data-num="2.0">Code Changes Made by AI</h2>
+        <p>The AI modified the quota validation logic in <code>src/server.js</code>. Rather than hard-rejecting quota overflows, it extracts the would-be status into a variable before reaching the database write:</p>
+
+        <pre><span class="lang-tag">JS — server.js</span><span class="cmt">// BEFORE — hard 400 rejection on 3rd booking</span>
+<span class="kw">const</span> userReservations = db.getReservationsByUser(userId);
+<span class="kw">if</span> (userReservations.length >= <span class="num">2</span>) {
+  <span class="kw">return</span> res.status(<span class="num">400</span>).json({ error: <span class="str">'User quota exceeded.'</span> });
+}
+
+<span class="cmt">// AFTER — quota overflow creates PENDING_APPROVAL instead</span>
+<span class="kw">const</span> userReservations = db.getReservationsByUser(userId);
+<span class="kw">let</span> finalStatus = <span class="str">'APPROVED'</span>;
+<span class="kw">if</span> (userReservations.length >= <span class="num">2</span>) {
+  finalStatus = <span class="str">'PENDING_APPROVAL'</span>;
+}
+<span class="cmt">// ... date validation, overlap check ...</span>
+<span class="kw">const</span> reservation = db.createReservation({ assetId, userId, startDate, endDate });
+reservation.status = finalStatus;
+res.status(<span class="num">201</span>).json(reservation);</pre>
+
+        <h2 data-num="3.0">Detecting the Regression — Red Run</h2>
+        <p>Upon running the existing test suite (<code>npm test</code>), the automated system caught a regression. The test written to enforce the hard 400 limit failed because it now received a 201.</p>
+
+        <div class="stamp-badge red" style="margin-bottom: 16px;">Red Run Captured</div>
+
+        <pre><span class="lang-tag">TEST OUTPUT</span>FAIL tests/api.test.js
+  ● Equipment Reservation API
+    › POST /api/reservations - Edge Case: Exceed user quota (max 2)
+
+    expect(received).toBe(expected)
+
+    Expected: <span class="num">400</span>
+    Received: <span class="num">201</span>
+
+      81 |     <span class="cmt">// Third should fail</span>
+      82 |     <span class="kw">const</span> res = await request(app).post(<span class="str">'/api/reservations'</span>).send(payload3);
+    > 83 |     expect(res.statusCode).toBe(<span class="num">400</span>);
+         |                            ^</pre>
+
+        <h2 data-num="4.0">AI Self-Correction — Green Run</h2>
+        <p>The AI recognised that the feature change fundamentally altered the expected business rules for quota limits. It corrected the test suite to expect the new intended behaviour:</p>
+
+        <pre><span class="lang-tag">JS — api.test.js</span><span class="cmt">// BEFORE — expected hard rejection</span>
+<span class="kw">const</span> res = await request(app).post(<span class="str">'/api/reservations'</span>).send(payload3);
+expect(res.statusCode).toBe(<span class="num">400</span>);
+expect(res.body.error).toContain(<span class="str">'User quota exceeded'</span>);
+
+<span class="cmt">// AFTER — expects PENDING_APPROVAL, not failure</span>
+<span class="kw">const</span> res = await request(app).post(<span class="str">'/api/reservations'</span>).send(payload3);
+expect(res.statusCode).toBe(<span class="num">201</span>);
+expect(res.body.status).toBe(<span class="str">'PENDING_APPROVAL'</span>);</pre>
+
+        <div class="stamp-badge green">Green Run — All 15 Tests Pass</div>
+
+        <div class="callout green" style="margin-top: 20px;">
+          <div class="callout-label">Final Outcome</div>
+          <p>Running <code>npm test</code> after the correction resulted in a completely passing test suite, successfully closing the loop. Full logs are in <code>test-reports/03_healed_pass.log</code>.</p>
+        </div>
+
+        <h2 data-num="5.0">Loop Summary</h2>
+        <div class="loop-flow">
+          <div class="loop-step">
+            <div class="step-n">01 — Request</div>
+            <h4>Feature Added</h4>
+            <p>Quota overflow no longer fails — it creates a PENDING_APPROVAL reservation.</p>
+          </div>
+          <div class="loop-arrow">→</div>
+          <div class="loop-step">
+            <div class="step-n">02 — Breakage</div>
+            <h4>Test Fails</h4>
+            <p>Old test expected a 400. Now gets 201. Jest catches the regression immediately.</p>
+          </div>
+          <div class="loop-arrow">→</div>
+          <div class="loop-step">
+            <div class="step-n">03 — Healing</div>
+            <h4>Self-Corrected</h4>
+            <p>AI rewrites the assertion to expect 201 + PENDING_APPROVAL. All 15 tests green.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-rule">
+
+    <!-- ======================================= -->
+    <!-- DOC 4: VIDEO SCRIPT                     -->
+    <!-- ======================================= -->
+    <section id="video-script" class="doc-section">
+      <div class="doc-header">
+        <div class="doc-number">04</div>
+        <div class="doc-header-text">
+          <div class="doc-eyebrow">Stage 4 · Video Presentation</div>
+          <div class="doc-title">Video Script</div>
+          <div class="doc-subtitle">Word-for-word script and visual cues for the 5-minute presentation video</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="callout">
+          <div class="callout-label">Total Duration</div>
+          <p>~5 minutes. Record in one continuous take where possible. Switch between slides and browser without cutting.</p>
+        </div>
+
+        <div class="script-part">
+          <div class="script-part-header">
+            <span class="part-title">Part 1 — Problem &amp; Approach</span>
+            <span class="part-time">0:00 – 1:00</span>
+          </div>
+          <div class="script-part-body">
+            <div class="script-visual">Show Slide 1 (Cover), then Slide 2 (Problem Space)</div>
+            <p class="script-text">"Hi, I'm presenting the Smart Asset Reservation System built for the Tactive Assessment. The problem I tackled is corporate equipment management — specifically preventing overlapping reservations, enforcing max duration limits, and managing user quotas. My approach was to build a Node.js REST API with a modern, ledger-styled frontend, prioritising strict server-side validation and automated testing."</p>
+          </div>
+        </div>
+
+        <div class="script-part">
+          <div class="script-part-header">
+            <span class="part-title">Part 2 — Solution &amp; AI Change Loop</span>
+            <span class="part-time">1:00 – 2:00</span>
+          </div>
+          <div class="script-part-body">
+            <div class="script-visual">Show Slide 4 (Test Automation), Slide 5 (AI Change Loop), then switch to code editor showing docs/AI_CHANGE_LOOP_EVIDENCE.md</div>
+            <p class="script-text">"Security and reliability are handled by a robust Jest + Supertest test suite. To demonstrate the AI change loop, I had the AI implement a feature where exceeding your reservation quota places your booking in a PENDING_APPROVAL state rather than outright rejecting it. This predictably broke our existing strict-rejection test. The AI caught the regression in the Red Run, and then self-corrected the test suite to expect the new behaviour, resulting in our final Green Run with all 15 tests passing."</p>
+          </div>
+        </div>
+
+        <div class="script-part">
+          <div class="script-part-header">
+            <span class="part-title">Part 3 — Live Demonstration</span>
+            <span class="part-time">2:00 – 5:00</span>
+          </div>
+          <div class="script-part-body">
+            <div class="script-visual">Switch to browser at http://localhost:3000</div>
+            <ul class="script-breakdown">
+              <li>
+                <span class="time-tag">2:00 – 2:30</span>
+                <strong>Asset Catalog</strong>
+                <p class="script-text" style="margin-top:6px;">"Here is the UI, styled to look like a physical tool crib ledger. You can see available assets and items currently in maintenance. Use the toggle button to flip an item in and out of maintenance in real time."</p>
+              </li>
+              <li>
+                <span class="time-tag">2:30 – 3:30</span>
+                <strong>Validation Rules</strong>
+                <p class="script-text" style="margin-top:6px;">"I'll try to reserve the MacBook Pro. If I try to book it for 20 days, the server rejects it because the max duration is 14 days. If I enter a date in the past, it fails immediately. If I enter my name and registration number and try to double-book the same asset on overlapping dates, the API returns a 409 Conflict."</p>
+              </li>
+              <li>
+                <span class="time-tag">3:30 – 4:15</span>
+                <strong>Quota Limit &amp; PENDING_APPROVAL</strong>
+                <p class="script-text" style="margin-top:6px;">"I'll make two valid reservations on different assets — both come back APPROVED. Now I'll try a third. Rather than failing, it is created with a status of PENDING_APPROVAL, exactly as the AI-implemented feature specifies. You can also see the live CSV file update in the data folder after every action."</p>
+              </li>
+              <li>
+                <span class="time-tag">4:15 – 5:00</span>
+                <strong>History Log &amp; Cancellation</strong>
+                <p class="script-text" style="margin-top:6px;">"Clicking HISTORY on any asset shows its full reservation ledger — who booked it, when, and what status. Finally, cancelling a reservation updates the ledger immediately and frees the asset. Thank you for your time — I'm happy to walk through any part of the code in more detail."</p>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Active nav link on scroll
+    const sections = document.querySelectorAll('.doc-section');
+    const navLinks = document.querySelectorAll('nav a');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          navLinks.forEach(a => a.classList.remove('active'));
+          const active = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+  </script>
+</body>
+</html>
