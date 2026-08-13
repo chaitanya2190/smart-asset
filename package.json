@@ -19,7 +19,10 @@
     "express-rate-limit": "^8.6.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
     "jest": "^30.4.2",
+    "puppeteer": "^25.6.0",
     "supertest": "^7.2.2"
   }
 }

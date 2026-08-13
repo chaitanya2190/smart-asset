@@ -1,5 +1,4 @@
 const API_BASE = '/api';
-let CURRENT_USER = '';
 let IS_ADMIN = false;
 let ALL_ASSETS = [];
 
@@ -45,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const signOutBtn = document.getElementById('sign-out-btn');
   if (signOutBtn) {
     signOutBtn.addEventListener('click', () => {
-      sessionStorage.removeItem('currentUser');
-      sessionStorage.removeItem('isAdmin');
+      window.sessionStorage.removeItem('currentUser');
+      window.sessionStorage.removeItem('isAdmin');
       window.location.reload();
     });
   }
@@ -61,8 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (!name) return;
 
-      sessionStorage.setItem('currentUser', name);
-      sessionStorage.setItem('isAdmin', isAdmin.toString());
+      window.sessionStorage.setItem('currentUser', name);
+      window.sessionStorage.setItem('isAdmin', isAdmin.toString());
       
       checkAuth();
     });
@@ -92,10 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function checkAuth() {
-  const storedUser = sessionStorage.getItem('currentUser');
+  const storedUser = window.sessionStorage.getItem('currentUser');
   if (storedUser) {
-    CURRENT_USER = storedUser;
-    IS_ADMIN = sessionStorage.getItem('isAdmin') === 'true';
+    IS_ADMIN = window.sessionStorage.getItem('isAdmin') === 'true';
     
     document.getElementById('login-overlay').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
@@ -134,7 +132,7 @@ async function loadAssets() {
     } else {
       renderAssets(ALL_ASSETS);
     }
-  } catch (err) {
+  } catch {
     showToast('Failed to load assets', 'error');
   }
 }
@@ -146,27 +144,9 @@ async function loadReservations() {
     // Shared Ledger: show all active reservations!
     const activeReservations = allReservations.filter(r => r.status !== 'CANCELLED');
     renderReservations(activeReservations);
-  } catch (err) {
+  } catch {
     showToast('Failed to load reservations', 'error');
   }
-}
-
-function generateBarcodeHtml(seedString) {
-  let html = '<div style="display:flex; height:30px; margin-bottom:5px;">';
-  let seed = 0;
-  for(let i=0; i<seedString.length; i++) { seed += seedString.charCodeAt(i); }
-  
-  for(let i=0; i<30; i++) {
-    seed = (seed * 9301 + 49297) % 233280;
-    const rand = seed / 233280;
-    const width = Math.floor(rand * 4) + 1;
-    
-    seed = (seed * 9301 + 49297) % 233280;
-    const space = Math.floor((seed / 233280) * 3);
-    html += `<div style="background:var(--text-main); width:${width}px; margin-right:${space}px; flex-shrink:0;"></div>`;
-  }
-  html += '</div>';
-  return html;
 }
 
 function renderAssets(assets) {
@@ -179,9 +159,6 @@ function renderAssets(assets) {
     const isAvailable = asset.status === 'AVAILABLE';
     card.innerHTML = `
       <div class="asset-info">
-        <div class="asset-id-row" style="justify-content: flex-start; margin-bottom: 1.5rem;">
-          <span class="stamp ${isAvailable ? 'available' : 'maintenance'}">${asset.status}</span>
-        </div>
         <h3 style="margin-bottom: 0.25rem;">${asset.name}</h3>
         <p class="mono" style="font-size: 0.9rem; margin-bottom: 0.75rem; font-weight: bold;">REG: ${asset.id}</p>
         <p class="mono" style="font-size: 0.8rem; color: #555;">MAX DURATION: ${asset.maxDuration} DAYS</p>
@@ -197,6 +174,11 @@ function renderAssets(assets) {
             </button>
             <button class="btn danger-btn remove-asset-btn" data-id="${asset.id}" style="flex: 1; padding: 0.5rem; font-size: 0.85rem;">
               REMOVE
+            </button>
+          </div>
+          <div style="display: flex; gap: 0.5rem; width: 100%; margin-top: 0.25rem;">
+            <button class="btn toggle-maint-btn" data-id="${asset.id}" style="flex: 1; border: 2px solid var(--text-main); background: #fdfaf5; color: var(--text-main); padding: 0.5rem; font-size: 0.85rem;">
+              ${isAvailable ? 'SET MAINTENANCE' : 'SET AVAILABLE'}
             </button>
           </div>
         </div>
@@ -223,6 +205,28 @@ function renderAssets(assets) {
   document.querySelectorAll('.history-asset-btn').forEach(btn => {
     btn.addEventListener('click', (e) => loadAssetHistory(e.target.getAttribute('data-id')));
   });
+
+  // Attach event listeners to all toggle maintenance buttons
+  document.querySelectorAll('.toggle-maint-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => toggleMaintenance(e.target.getAttribute('data-id')));
+  });
+}
+
+async function toggleMaintenance(id) {
+  try {
+    const res = await fetch(`${API_BASE}/assets/${id}/maintenance`, {
+      method: 'PATCH',
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message, 'success');
+      loadAssets(); // refresh list
+    } else {
+      showToast(data.error || 'Failed to toggle maintenance', 'error');
+    }
+  } catch {
+    showToast('Network error', 'error');
+  }
 }
 
 async function loadAssetHistory(id) {
@@ -262,7 +266,7 @@ async function loadAssetHistory(id) {
 }
 
 async function removeAsset(id) {
-  if (!confirm('Are you sure you want to remove this asset?')) return;
+  if (!window.confirm('Are you sure you want to remove this asset?')) return;
   try {
     const res = await fetch(`${API_BASE}/assets/${id}`, { method: 'DELETE' });
     if (!res.ok) {
@@ -403,7 +407,7 @@ async function handleReservationSubmit(e) {
 }
 
 async function cancelReservation(id) {
-  if (!confirm('Cancel this reservation?')) return;
+  if (!window.confirm('Cancel this reservation?')) return;
   try {
     const res = await fetch(`${API_BASE}/reservations/${id}/cancel`, { method: 'POST' });
     if (!res.ok) throw new Error('Failed to cancel');

@@ -122,6 +122,16 @@ class Database {
     return false;
   }
 
+  toggleMaintenance(id) {
+    const asset = this.assets.find(a => a.id === id);
+    if (asset) {
+      asset.status = asset.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+      this.scheduleSave();
+      return asset;
+    }
+    return null;
+  }
+
   getReservations() {
     return this.reservations;
   }

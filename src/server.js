@@ -53,6 +53,16 @@ app.delete('/api/assets/:id', (req, res) => {
   }
 });
 
+// Toggle asset maintenance status
+app.patch('/api/assets/:id/maintenance', (req, res) => {
+  const asset = db.toggleMaintenance(req.params.id);
+  if (asset) {
+    res.json({ message: 'Asset maintenance toggled successfully.', asset });
+  } else {
+    res.status(404).json({ error: 'Asset not found.' });
+  }
+});
+
 // Get asset history
 app.get('/api/assets/:id/history', (req, res) => {
   const asset = db.getAssetById(req.params.id);
