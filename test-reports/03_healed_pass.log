@@ -1,0 +1,19 @@
+> assessment@1.0.0 test
+> jest
+
+PASS tests/api.test.js
+  Equipment Reservation API
+    √ GET /api/assets - Should return all assets (30 ms)
+    √ POST /api/reservations - Happy Path: Should create a valid reservation (27 ms)
+    √ POST /api/reservations - Invalid Input: Start date after End date (11 ms)
+    √ POST /api/reservations - Invalid Input: SQL/XSS payload in userId (8 ms)
+    √ POST /api/reservations - Edge Case: Exceed maximum duration cap (17 ms)
+    √ POST /api/reservations - Edge Case: Exceed user quota (max 2) (22 ms)
+    √ POST /api/reservations - Edge Case: Date Overlap on same asset (17 ms)
+    √ POST /api/reservations - Maintenance Window Lock (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       8 passed, 8 total
+Snapshots:   0 total
+Time:        1.097 s
+Ran all test suites.

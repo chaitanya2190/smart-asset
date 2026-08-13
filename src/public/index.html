@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corporate Equipment Reservation System</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="main-app" class="hidden">
+  <div class="app-container">
+    <header class="tool-header">
+      <h1>Asset Checkout Log</h1>
+      <div class="user-info" style="display: flex; gap: 1rem; align-items: center;">
+        <input type="text" id="asset-search" placeholder="Search by ID, Name, or Category..." class="mono" style="padding: 0.5rem; border: 2px solid var(--text-main); font-size: 0.9rem; min-width: 250px;">
+        <button id="add-asset-btn" class="btn primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">+ ADD NEW ASSET</button>
+        <button id="sign-out-btn" class="btn danger-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: transparent;">SIGN OUT</button>
+      </div>
+    </header>
+
+    <main class="content-grid">
+      <section class="panel">
+        <h2 class="section-header">INVENTORY LOG</h2>
+        <div id="assets-list" class="assets-grid">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-header">ALL ACTIVE RESERVATIONS (SHARED LEDGER)</h2>
+        <div id="reservations-list" class="reservations-list">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Reservation Modal -->
+  <div id="reservation-modal" class="modal hidden">
+    <div class="modal-content glass-panel">
+      <span class="close-btn">&times;</span>
+      <h2>Reserve <span id="modal-asset-name"></span></h2>
+      <form id="reservation-form">
+        <input type="hidden" id="asset-id">
+        <div class="form-group">
+          <label>Asset</label>
+          <div id="modal-asset-name" class="mono" style="padding: 0.5rem; background: var(--bg-color); border: 1px solid var(--border-color);"></div>
+        </div>
+        <div class="form-group" id="reserver-name-group">
+          <label for="reserver-name">Reserver Name</label>
+          <input type="text" id="reserver-name" placeholder="e.g. John Smith" required>
+        </div>
+        <div class="form-group" id="reserver-reg-group">
+          <label for="reserver-reg">Registration Number</label>
+          <input type="text" id="reserver-reg" placeholder="e.g. EMP123" required>
+        </div>
+        <div class="form-group">
+          <label for="start-date">Check-out Date</label>
+          <input type="date" id="start-date" required>
+        </div>
+        <div class="form-group">
+          <label for="end-date">Return Date</label>
+          <input type="date" id="end-date" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="submit-reservation-btn" class="btn primary-btn">Confirm Reservation</button>
+        </div>
+      </form>
+      <div id="form-error" class="error-msg hidden"></div>
+    </div>
+  </div>
+
+  <!-- Add Asset Modal -->
+  <div id="add-asset-modal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn asset-close-btn">&times;</span>
+      <h2>ADD NEW ASSET</h2>
+      <form id="add-asset-form">
+        <div class="form-group">
+          <label for="new-asset-name">Asset Name</label>
+          <input type="text" id="new-asset-name" placeholder="e.g. Wacom Tablet" required>
+        </div>
+        <div class="form-group">
+          <label for="new-asset-category">Category</label>
+          <select id="new-asset-category" required style="width: 100%; padding: 0.75rem; font-family: 'IBM Plex Mono', monospace; border: 2px solid var(--text-main); background: #fff;">
+            <option value="Computing">Computing</option>
+            <option value="Photography">Photography</option>
+            <option value="Displays">Displays</option>
+            <option value="Misc">Misc</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="new-asset-duration">Max Duration (Days)</label>
+          <input type="number" id="new-asset-duration" min="1" max="365" value="14" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="submit-asset-btn" class="btn primary-btn">CREATE ASSET</button>
+        </div>
+      </form>
+      <div id="asset-form-error" class="error-msg hidden"></div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div id="history-modal" class="modal hidden">
+    <div class="modal-content" style="max-width: 600px;">
+      <span class="close-btn history-close-btn">&times;</span>
+      <h2>ASSET HISTORY LOG</h2>
+      <div id="history-list" style="margin-top: 1.5rem; max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div> <!-- End main-app -->
+
+<!-- Full Screen Login Overlay -->
+<div id="login-overlay" class="login-overlay">
+  <div class="login-box">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <h2 style="font-size: 2rem; border-bottom: 2px solid var(--text-main); display: inline-block; padding-bottom: 0.5rem;">TOOL CRIB</h2>
+      <p class="mono" style="margin-top: 0.5rem;">EMPLOYEE SIGN-IN TERMINAL</p>
+    </div>
+    
+    <form id="login-form">
+      <div class="form-group">
+        <label for="login-name">Employee ID / Name</label>
+        <input type="text" id="login-name" placeholder="e.g. J_SMITH" required style="font-size: 1.2rem; padding: 1rem;">
+      </div>
+      <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.5rem; justify-content: flex-start; margin-bottom: 2rem;">
+        <input type="checkbox" id="login-admin" style="width: 20px; height: 20px; accent-color: var(--text-main);">
+        <label for="login-admin" style="margin: 0; font-size: 1rem; cursor: pointer;">Login as Admin (Staff)</label>
+      </div>
+      <button type="submit" class="btn primary-btn" style="width: 100%; font-size: 1.2rem; padding: 1rem;">CLOCK IN</button>
+    </form>
+  </div>
+</div>
+
+  <script src="app.js"></script>
+</body>
+</html>

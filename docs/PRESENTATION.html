@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Asset Checkout Log — Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --paper: #EDE7D8;
+      --paper-dark: #E2DAC5;
+      --ink: #211E19;
+      --ink-soft: #57503F;
+      --kraft: #C08A3E;
+      --kraft-dim: #C08A3E55;
+      --stamp-green: #2F6B4F;
+      --stamp-red: #A33B2B;
+      --stamp-blue: #2C4A72;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--paper-dark);
+      font-family: 'Inter', sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    /* subtle paper grain */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.015) 0px, transparent 1px, transparent 2px),
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.012) 0px, transparent 1px, transparent 3px);
+    }
+
+    .deck {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5vh 2vw;
+    }
+
+    .sheet {
+      position: relative;
+      width: min(1100px, 94vw);
+      height: min(640px, 92vh);
+      background: var(--paper);
+      border: 1px solid #00000018;
+      box-shadow: 0 18px 40px -10px rgba(33, 30, 25, 0.35), 0 2px 0 rgba(0, 0, 0, 0.05);
+      display: none;
+      grid-template-columns: 64px 1fr;
+      animation: pageIn .45s ease;
+    }
+
+    .sheet.active {
+      display: grid;
+    }
+
+    @keyframes pageIn {
+      from {
+        opacity: 0;
+        transform: translateX(24px) rotate(0.4deg);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0) rotate(0deg);
+      }
+    }
+
+    /* binder rail */
+    .rail {
+      background: var(--paper-dark);
+      border-right: 2px dashed var(--kraft-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 0;
+      gap: 22px;
+      position: relative;
+    }
+
+    .rail .hole {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--paper);
+      box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+
+    .rail .tally {
+      margin-top: auto;
+      writing-mode: vertical-rl;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+    }
+
+    .content {
+      padding: 44px 56px 32px 48px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      border-bottom: 1px solid var(--kraft-dim);
+      padding-bottom: 10px;
+      margin-bottom: 26px;
+    }
+
+    .eyebrow .tag {
+      border: 1px solid var(--kraft);
+      color: var(--kraft);
+      padding: 2px 8px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+
+    h1,
+    h2 {
+      font-family: 'Oswald', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.01em;
+      margin: 0 0 6px 0;
+      color: var(--ink);
+    }
+
+    h1 {
+      font-size: clamp(2.1rem, 4.2vw, 3.1rem);
+      font-weight: 700;
+    }
+
+    h2 {
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      font-weight: 600;
+    }
+
+    .sub {
+      font-size: 1rem;
+      color: var(--ink-soft);
+      max-width: 640px;
+      margin-bottom: 22px;
+    }
+
+    .manifest {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 720px;
+    }
+
+    .manifest li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 1.02rem;
+      line-height: 1.5;
+      color: var(--ink);
+    }
+
+    .manifest li::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+      margin-top: 4px;
+      border: 2px solid var(--kraft);
+      border-radius: 2px;
+    }
+
+    .manifest li b {
+      color: var(--ink);
+    }
+
+    .manifest li .lbl {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: var(--stamp-blue);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* stamp badge */
+    .stamp {
+      position: absolute;
+      font-family: 'Oswald', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 18px;
+      border: 3px solid currentColor;
+      border-radius: 6px;
+      transform: rotate(-8deg);
+      opacity: 0.9;
+    }
+
+    .stamp.green {
+      color: var(--stamp-green);
+    }
+
+    .stamp.red {
+      color: var(--stamp-red);
+    }
+
+    .stamp.blue {
+      color: var(--stamp-blue);
+    }
+
+    /* flow for AI change loop slide */
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      max-width: 760px;
+      margin-top: 8px;
+    }
+
+    .flow .step {
+      flex: 1;
+      border: 1px solid var(--kraft-dim);
+      background: var(--paper-dark);
+      padding: 16px 14px;
+      position: relative;
+    }
+
+    .flow .step+.step {
+      border-left: none;
+    }
+
+    .flow .step .n {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--kraft);
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .flow .step h3 {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem;
+      margin: 0 0 6px 0;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .flow .step p {
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .flow .arrow {
+      align-self: center;
+      padding: 0 6px;
+      color: var(--kraft);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.1rem;
+    }
+
+    .hero-tag {
+      display: inline-block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: var(--paper);
+      background: var(--ink);
+      padding: 4px 10px;
+      border-radius: 2px;
+      margin-bottom: 18px;
+      width: fit-content;
+    }
+
+    .demo-slot {
+      margin-top: 20px;
+      border: 2px dashed var(--kraft);
+      border-radius: 4px;
+      padding: 34px;
+      max-width: 640px;
+      color: var(--ink-soft);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-align: center;
+      background: repeating-linear-gradient(135deg, transparent, transparent 10px, rgba(192, 138, 62, 0.06) 10px, rgba(192, 138, 62, 0.06) 20px);
+    }
+
+    /* footer / controls */
+    .footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 18px;
+    }
+
+    .dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dots span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--kraft-dim);
+      transition: background .2s;
+    }
+
+    .dots span.on {
+      background: var(--kraft);
+    }
+
+    .nav-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .nav-btns button {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: transparent;
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+      padding: 9px 16px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .nav-btns button:hover {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .nav-btns button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .nav-btns button:disabled:hover {
+      background: transparent;
+      color: var(--ink);
+    }
+
+    .nav-btns button:focus-visible {
+      outline: 3px solid var(--stamp-blue);
+      outline-offset: 2px;
+    }
+
+    .page-no {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--ink-soft);
+      letter-spacing: 0.06em;
+    }
+
+    @media (max-width:640px) {
+      .sheet {
+        grid-template-columns: 32px 1fr;
+      }
+
+      .rail {
+        padding: 16px 0;
+        gap: 12px;
+      }
+
+      .rail .hole {
+        width: 10px;
+        height: 10px;
+      }
+
+      .content {
+        padding: 26px 22px 20px 22px;
+      }
+
+      .stamp {
+        position: static;
+        display: inline-block;
+        margin-bottom: 14px;
+        transform: rotate(-4deg);
+      }
+
+      .flow {
+        flex-direction: column;
+      }
+
+      .flow .step+.step {
+        border-left: 1px solid var(--kraft-dim);
+        border-top: none;
+      }
+
+      .flow .arrow {
+        align-self: flex-start;
+        transform: rotate(90deg);
+        padding: 2px 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sheet {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="deck">
+
+    <!-- Slide 1 — Cover -->
+    <section class="sheet active" data-slide>
+      <div class="rail">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="tally">FILE NO. 001</div>
+      </div>
+      <div class="content">
+        <div class="eyebrow"><span>TACTIVE INTERNSHIP ASSESSMENT</span><span class="tag">DECK 01/06</span></div>
+        <span class="hero-tag">ASSET INTAKE FORM</span>
+        <h1>Smart Asset<br>Checkout Log</h1>
+        <p class="sub">An AI-assisted "build → test → fix" engineering loop, delivered as a working equipment
+          reservation system — styled after a real warehouse tool crib.</p>
+        <div class="stamp green" style="position:static; margin-top:24px;">Submitted for Review</div>
+        <div class="footer">
+          <span class="page-no">PREPARED FOR TACTIVE HIRING BOARD</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 2 — Problem -->
+    <section class="sheet" data-slide>
+      <div class="rail">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="tally">FILE NO. 002</div>
+      </div>
+      <div class="content">
+        <div class="eyebrow"><span>SECTION A</span><span class="tag">DECK 02/06</span></div>
+        <h2>The Problem Space</h2>
+        <p class="sub">Why equipment tracking breaks down without a system behind it.</p>
+        <ul class="manifest">
+          <li><span><span class="lbl">Observation</span><b>Manual tracking.</b> Corporate equipment sign-out is often a
+              spreadsheet or a sticky note — easy to lose, easy to forget.</span></li>
+          <li><span><span class="lbl">Observation</span><b>No enforcement.</b> Quota limits and duration caps are hard
+              to enforce by hand, so they quietly get ignored.</span></li>
+          <li><span><span class="lbl">Observation</span><b>Silent conflicts.</b> Overlapping reservations on the same
+              item cause double-bookings nobody catches until pickup day.</span></li>
+          <li><span><span class="lbl">Observation</span><b>Maintenance gaps.</b> Equipment down for service isn't
+              visibly flagged, so it still gets requested.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Slide 3 — Approach -->
+    <section class="sheet" data-slide>
+      <div class="rail">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="tally">FILE NO. 003</div>
+      </div>
+      <div class="content">
+        <div class="eyebrow"><span>SECTION B</span><span class="tag">DECK 03/06</span></div>
+        <h2>The Approach</h2>
+        <p class="sub">A small, disciplined stack — no more moving parts than the problem needs.</p>
+        <ul class="manifest">
+          <li><span><span class="lbl">Stack</span><b>Node.js + Express API</b>, paired with a hand-built vanilla
+              HTML/CSS/JS front end styled as a physical inventory ledger.</span></li>
+          <li><span><span class="lbl">Validation</span><b>A strict request gauntlet</b> — date bounds, duration caps,
+              double-booking checks, and quota control run on every reservation.</span></li>
+          <li><span><span class="lbl">Testing</span><b>Jest + Supertest coverage</b> for edge cases, invalid input, and
+              security constraints, not just the happy path.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Slide 4 — Test Automation -->
+    <section class="sheet" data-slide>
+      <div class="rail">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="tally">FILE NO. 004</div>
+      </div>
+      <div class="content">
+        <div class="eyebrow"><span>SECTION C</span><span class="tag">DECK 04/06</span></div>
+        <h2>Test Automation &amp; Red Runs</h2>
+        <p class="sub">Proving the suite actually catches regressions, not just that it runs.</p>
+        <ul class="manifest">
+          <li><span><span class="lbl">Coverage</span>The automated suite verifies API correctness across every
+              validation rule.</span></li>
+          <li><span><span class="lbl">Proof</span>A failure was deliberately injected to confirm the suite catches
+              regressions — captured as a <b>Red Run</b> before the fix.</span></li>
+          <li><span><span class="lbl">Security</span>Tested against XSS payloads in free-text fields and impossible date
+              combinations.</span></li>
+        </ul>
+        <div class="stamp red" style="position:static; margin-top:22px; width:fit-content;">Red Run Captured</div>
+      </div>
+    </section>
+
+    <!-- Slide 5 — AI Change Loop -->
+    <section class="sheet" data-slide>
+      <div class="rail">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="tally">FILE NO. 005</div>
+      </div>
+      <div class="content">
+        <div class="eyebrow"><span>SECTION D</span><span class="tag">DECK 05/06</span></div>
+        <h2>The AI Change Loop</h2>
+        <p class="sub">One feature, tracked end to end through request, break, and repair.</p>
+        <div class="flow">
+          <div class="step">
+            <span class="n">01 — REQUEST</span>
+            <h3>Quota Overflow</h3>
+            <p>New rule: a user's 3rd active reservation should route to <b>PENDING_APPROVAL</b> instead of failing
+              outright.</p>
+          </div>
+          <div class="arrow">→</div>
+          <div class="step">
+            <span class="n">02 — BREAKAGE</span>
+            <h3>Test Fails</h3>
+            <p>An existing test expecting a strict <b>400 rejection</b> on the 3rd reservation now fails against the new
+              rule.</p>
+          </div>
+          <div class="arrow">→</div>
+          <div class="step">
+            <span class="n">03 — HEALING</span>
+            <h3>Self-Corrected</h3>
+            <p>The test was rewritten to expect <b>201 PENDING_APPROVAL</b>, matching the intended behavior.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slide 6 — Live Demo -->
+    <section class="sheet" data-slide>
+      <div class="rail">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="tally">FILE NO. 006</div>
+      </div>
+      <div class="content">
+        <div class="eyebrow"><span>SECTION E</span><span class="tag">DECK 06/06</span></div>
+        <h2>Live Demonstration</h2>
+        <p class="sub">Everything above, running for real — the application and the codebase behind it.</p>
+        <div class="demo-slot">
+          ▸ SWITCH TO LOCALHOST:3000<br>AND THE OPEN REPOSITORY NOW
+        </div>
+        <div class="stamp blue" style="position:static; margin-top:22px; width:fit-content;">End of Deck</div>
+      </div>
+    </section>
+
+    <div style="position:fixed; bottom:3vh; left:0; right:0; display:flex; justify-content:center;">
+      <div style="width:min(1100px,94vw); display:flex; align-items:center; justify-content:space-between;">
+        <div class="dots" id="dots"></div>
+        <div class="nav-btns">
+          <button id="prev" aria-label="Previous slide">◂ Prev</button>
+          <button id="next" aria-label="Next slide">Next ▸</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('[data-slide]'));
+    const dotsEl = document.getElementById('dots');
+    let current = 0;
+
+    slides.forEach((_, i) => {
+      const d = document.createElement('span');
+      if (i === 0) d.classList.add('on');
+      dotsEl.appendChild(d);
+    });
+    const dots = Array.from(dotsEl.children);
+
+    function render() {
+      slides.forEach((s, i) => s.classList.toggle('active', i === current));
+      dots.forEach((d, i) => d.classList.toggle('on', i === current));
+      document.getElementById('prev').disabled = current === 0;
+      document.getElementById('next').disabled = current === slides.length - 1;
+    }
+    function next() { if (current < slides.length - 1) { current++; render(); } }
+    function prev() { if (current > 0) { current--; render(); } }
+
+    document.getElementById('next').addEventListener('click', next);
+    document.getElementById('prev').addEventListener('click', prev);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+    });
+
+    render();
+  </script>
+</body>
+
+</html>

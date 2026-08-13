@@ -1,0 +1,360 @@
+:root {
+  --bg-color: #EDE7D8;
+  --text-main: #211E19;
+  --border-color: #C08A3E;
+  --stamp-green: #2F6B4F;
+  --stamp-red: #A33B2B;
+  --stamp-blue: #2C4A72;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><path d="M0 0h100v100H0z" fill="none"/><path d="M0 10h100M10 0v100" stroke="%23e3dbcc" stroke-width="0.5"/></svg>'); /* faint ledger grid */
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Header */
+.tool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid var(--text-main);
+  margin-bottom: 2rem;
+}
+
+.tool-header h1 {
+  font-size: 2.5rem;
+}
+
+.user-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--text-main);
+  background: var(--border-color);
+  color: var(--text-main);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 3rem;
+}
+
+.section-header {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.25rem;
+  display: inline-block;
+  font-weight: 700;
+}
+
+/* Claim Ticket Cards */
+.assets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.asset-card {
+  background: #f7f4ed; /* slightly lighter than bg for contrast */
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 2px 0px rgba(192,138,62,0.3);
+}
+
+/* Tag Hole */
+.asset-card::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 12px;
+  height: 12px;
+  background: var(--bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  box-shadow: inset 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.asset-info {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+.asset-info h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  padding-right: 20px;
+}
+
+.asset-id-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+/* The perforation line */
+.ticket-stub {
+  border-top: 2px dashed var(--border-color);
+  padding: 1rem;
+  background: #fdfaf5;
+  text-align: center;
+}
+
+/* Ink Stamp (replaces pills) */
+.stamp {
+  display: inline-block;
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 3px solid;
+  padding: 0.25rem 0.75rem;
+  border-radius: 2px;
+  transform: rotate(-3deg);
+  opacity: 0.85; /* slight ink fade */
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5); /* texture illusion */
+}
+
+/* Adding slight irregular rotation randomly using nth-child if possible, or just fixed */
+.asset-card:nth-child(even) .stamp { transform: rotate(2deg); }
+.asset-card:nth-child(3n) .stamp { transform: rotate(-5deg); }
+
+.stamp.available { color: var(--stamp-green); border-color: var(--stamp-green); }
+.stamp.maintenance { color: var(--stamp-red); border-color: var(--stamp-red); }
+.stamp.approved { color: var(--stamp-green); border-color: var(--stamp-green); }
+.stamp.pending { color: var(--stamp-blue); border-color: var(--stamp-blue); }
+
+/* Due Date Cards (Reservations) */
+.reservations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.due-card {
+  background: #fdfaf5;
+  border: 1px solid var(--border-color);
+  border-left: 10px solid var(--border-color); /* manila folder edge */
+  padding: 1.25rem;
+  position: relative;
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.05);
+}
+
+.due-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.due-card-id {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.2rem;
+  color: var(--text-main);
+}
+
+.due-card-dates {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.due-card .stamp {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 1rem;
+  border-width: 2px;
+}
+
+/* Buttons */
+.btn {
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  border: 2px solid var(--text-main);
+  background: var(--text-main);
+  color: var(--bg-color);
+  transition: all 0.1s;
+}
+
+.btn:hover:not(:disabled) {
+  background: #3a352d;
+}
+
+.btn:disabled {
+  background: transparent;
+  color: #a39c8f;
+  border-color: #a39c8f;
+  cursor: not-allowed;
+}
+
+.btn.danger-btn {
+  background: transparent;
+  color: var(--stamp-red);
+  border-color: var(--stamp-red);
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+}
+.btn.danger-btn:hover {
+  background: var(--stamp-red);
+  color: #fff;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(33, 30, 25, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal.hidden { display: none; }
+
+.modal-content {
+  background: var(--bg-color);
+  border: 4px solid var(--text-main);
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  position: relative;
+  box-shadow: 8px 8px 0px var(--text-main);
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-family: 'Oswald', sans-serif;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+  border: 2px solid var(--text-main);
+  background: #fff;
+}
+
+.error-msg {
+  color: var(--stamp-red);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  text-align: center;
+}
+.hidden { display: none; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  padding: 1rem 2rem;
+  background: var(--stamp-green);
+  color: white;
+  border: 2px solid var(--text-main);
+  font-family: 'IBM Plex Mono', monospace;
+  box-shadow: 4px 4px 0px var(--text-main);
+  transition: opacity 0.3s;
+}
+.toast.error {
+  background: var(--stamp-red);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tool-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .assets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Login Overlay Styles */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.login-overlay.hidden {
+  display: none;
+}
+
+.login-box {
+  background: #fff;
+  border: 2px solid var(--text-main);
+  padding: 3rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 4px 4px 0px var(--border-color);
+}

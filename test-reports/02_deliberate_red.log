@@ -1,0 +1,36 @@
+> assessment@1.0.0 test
+> jest
+
+FAIL tests/api.test.js
+  Equipment Reservation API
+    √ GET /api/assets - Should return all assets (33 ms)
+    √ POST /api/reservations - Happy Path: Should create a valid reservation (21 ms)
+    √ POST /api/reservations - Invalid Input: Start date after End date (5 ms)
+    √ POST /api/reservations - Invalid Input: SQL/XSS payload in userId (5 ms)
+    √ POST /api/reservations - Edge Case: Exceed maximum duration cap (6 ms)
+    √ POST /api/reservations - Edge Case: Exceed user quota (max 2) (12 ms)
+    × POST /api/reservations - Edge Case: Date Overlap on same asset (14 ms)
+    √ POST /api/reservations - Maintenance Window Lock (4 ms)
+
+  ● Equipment Reservation API › POST /api/reservations - Edge Case: Date Overlap on same asset
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 409
+    Received: 201
+
+      92 |     const payload2 = { assetId: 'A1', userId: 'user2', startDate: getFutureDate(5), endDate: getFutureDate(15) };
+      93 |     const res = await request(app).post('/api/reservations').send(payload2);
+    > 94 |     expect(res.statusCode).toBe(409);
+         |                            ^
+      95 |     expect(res.body.error).toContain('already reserved');
+      96 |   });
+      97 |
+
+      at Object.toBe (tests/api.test.js:94:28)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 7 passed, 8 total
+Snapshots:   0 total
+Time:        0.964 s, estimated 1 s
+Ran all test suites.
