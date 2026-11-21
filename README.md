@@ -19,6 +19,29 @@ You need [Node.js](https://nodejs.org/) installed to run this project.
    ```
 5. Open your browser and navigate to: [http://localhost:3000](http://localhost:3000)
 
+### 🐘 Persistent PostgreSQL Storage (Optional)
+Smart Asset features a dual-mode persistence layer. By default, it operates with zero external dependencies (CSV/in-memory mode). To run with persistent PostgreSQL:
+
+1. **Start PostgreSQL via Docker**:
+   ```bash
+   docker compose up -d
+   ```
+2. **Configure `.env`**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5432/smart_asset
+   ```
+3. **Initialize Database Schema & Seeds**:
+   ```bash
+   npm run db:init
+   ```
+   *(Optional: migrate existing CSV reservations to PostgreSQL with `npm run db:migrate`)*
+4. **Start Application**:
+   ```bash
+   npm start
+   ```
+   Check `/api/system/status` in your browser to verify: `{"status":"ok","storageEngine":"POSTGRESQL"}`.
+
 ## 🧪 2. Running the Test Suite
 The test suite (built with Jest and Supertest) validates the API, edge cases, invalid inputs, and security constraints.
 

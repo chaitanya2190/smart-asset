@@ -16,13 +16,26 @@ const createReservationLimiter = rateLimit({
   message: { error: 'Too many reservation requests from this IP, please try again later.' }
 });
 
+// Storage engine status
+app.get('/api/system/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    storageEngine: db.getEngineType()
+  });
+});
+
 // List all assets
-app.get('/api/assets', (req, res) => {
-  res.json(db.getAssets());
+app.get('/api/assets', async (req, res) => {
+  try {
+    const assets = await db.getAssets();
+    res.json(assets);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch assets' });
+  }
 });
 
 // Create a new asset
-app.post('/api/assets', (req, res) => {
+app.post('/api/assets', async (req, res) => {
   const { name, category, maxDuration } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -39,47 +52,68 @@ app.post('/api/assets', (req, res) => {
     return res.status(400).json({ error: 'Max Duration must be a positive number between 1 and 365.' });
   }
 
-  const newAsset = db.addAsset({ name: name.trim(), category, maxDuration: durationNum });
-  res.status(201).json({ message: 'Asset created successfully', asset: newAsset });
+  try {
+    const newAsset = await db.addAsset({ name: name.trim(), category, maxDuration: durationNum });
+    res.status(201).json({ message: 'Asset created successfully', asset: newAsset });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create asset.' });
+  }
 });
 
 // Delete an asset
-app.delete('/api/assets/:id', (req, res) => {
-  const success = db.removeAsset(req.params.id);
-  if (success) {
-    res.json({ message: 'Asset removed successfully.' });
-  } else {
-    res.status(404).json({ error: 'Asset not found.' });
+app.delete('/api/assets/:id', async (req, res) => {
+  try {
+    const success = await db.removeAsset(req.params.id);
+    if (success) {
+      res.json({ message: 'Asset removed successfully.' });
+    } else {
+      res.status(404).json({ error: 'Asset not found.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete asset.' });
   }
 });
 
 // Toggle asset maintenance status
-app.patch('/api/assets/:id/maintenance', (req, res) => {
-  const asset = db.toggleMaintenance(req.params.id);
-  if (asset) {
-    res.json({ message: 'Asset maintenance toggled successfully.', asset });
-  } else {
-    res.status(404).json({ error: 'Asset not found.' });
+app.patch('/api/assets/:id/maintenance', async (req, res) => {
+  try {
+    const asset = await db.toggleMaintenance(req.params.id);
+    if (asset) {
+      res.json({ message: 'Asset maintenance toggled successfully.', asset });
+    } else {
+      res.status(404).json({ error: 'Asset not found.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to toggle maintenance status.' });
   }
 });
 
 // Get asset history
-app.get('/api/assets/:id/history', (req, res) => {
-  const asset = db.getAssetById(req.params.id);
-  if (!asset) {
-    return res.status(404).json({ error: 'Asset not found.' });
+app.get('/api/assets/:id/history', async (req, res) => {
+  try {
+    const asset = await db.getAssetById(req.params.id);
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found.' });
+    }
+    const history = await db.getReservationsByAsset(req.params.id);
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch asset history.' });
   }
-  const history = db.getReservationsByAsset(req.params.id);
-  res.json(history);
 });
 
 // List all reservations
-app.get('/api/reservations', (req, res) => {
-  res.json(db.getReservations());
+app.get('/api/reservations', async (req, res) => {
+  try {
+    const reservations = await db.getReservations();
+    res.json(reservations);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch reservations.' });
+  }
 });
 
 // Create a reservation
-app.post('/api/reservations', createReservationLimiter, (req, res) => {
+app.post('/api/reservations', createReservationLimiter, async (req, res) => {
   let { assetId, userId, startDate, endDate } = req.body;
 
   if (!assetId || !userId || !startDate || !endDate) {
@@ -100,7 +134,7 @@ app.post('/api/reservations', createReservationLimiter, (req, res) => {
 
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return res.status(400).json({ error: 'Invalid date format.' });
   }
@@ -117,76 +151,99 @@ app.post('/api/reservations', createReservationLimiter, (req, res) => {
     return res.status(400).json({ error: 'Cannot book in the past.' });
   }
 
-  const asset = db.getAssetById(assetId);
-  if (!asset) {
-    return res.status(404).json({ error: 'Asset not found.' });
-  }
+  try {
+    const asset = await db.getAssetById(assetId);
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found.' });
+    }
 
-  if (asset.status === 'MAINTENANCE') {
-    return res.status(400).json({ error: 'Asset is currently in maintenance.' });
-  }
+    if (asset.status === 'MAINTENANCE') {
+      return res.status(400).json({ error: 'Asset is currently in maintenance.' });
+    }
 
-  // Validation: Duration caps
-  const durationDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-  if (durationDays > asset.maxDuration) {
-    return res.status(400).json({ error: `Exceeds maximum duration of ${asset.maxDuration} days for this asset.` });
-  }
+    // Validation: Duration caps
+    const durationDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    if (durationDays > asset.maxDuration) {
+      return res.status(400).json({ error: `Exceeds maximum duration of ${asset.maxDuration} days for this asset.` });
+    }
 
-  // Validation: User Quota cap (Max 2 active reservations per user)
-  const userReservations = db.getReservationsByUser(userId);
-  let finalStatus = 'APPROVED';
-  if (userReservations.length >= 2) {
-    finalStatus = 'PENDING_APPROVAL';
-  }
+    // Validation: User Quota cap (Max 2 active reservations per user)
+    const userReservations = await db.getReservationsByUser(userId);
+    let finalStatus = 'APPROVED';
+    if (userReservations.length >= 2) {
+      finalStatus = 'PENDING_APPROVAL';
+    }
 
-  // Validation: Date Overlap
-  if (db.hasDateOverlap(assetId, startDate, endDate)) {
-    return res.status(409).json({ error: 'Asset is already reserved for the requested dates.' });
-  }
+    // Validation: Date Overlap
+    const hasOverlap = await db.hasDateOverlap(assetId, startDate, endDate);
+    if (hasOverlap) {
+      return res.status(409).json({ error: 'Asset is already reserved for the requested dates.' });
+    }
 
-  // All validations passed
-  const reservation = db.createReservation({ assetId, userId, startDate, endDate });
-  reservation.status = finalStatus;
-  res.status(201).json(reservation);
+    // All validations passed
+    const reservation = await db.createReservation({
+      assetId,
+      userId,
+      startDate,
+      endDate,
+      status: finalStatus
+    });
+    res.status(201).json(reservation);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to process reservation.' });
+  }
 });
 
 // Cancel reservation
-app.post('/api/reservations/:id/cancel', (req, res) => {
-  const success = db.cancelReservation(req.params.id);
-  if (success) {
-    res.json({ message: 'Reservation cancelled successfully.' });
-  } else {
-    res.status(404).json({ error: 'Reservation not found.' });
+app.post('/api/reservations/:id/cancel', async (req, res) => {
+  try {
+    const success = await db.cancelReservation(req.params.id);
+    if (success) {
+      res.json({ message: 'Reservation cancelled successfully.' });
+    } else {
+      res.status(404).json({ error: 'Reservation not found.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to cancel reservation.' });
   }
 });
 
 // Approve reservation (Admin)
-app.post('/api/reservations/:id/approve', (req, res) => {
-  const reservation = db.getReservationById(req.params.id);
-  if (!reservation) {
-    return res.status(404).json({ error: 'Reservation not found.' });
-  }
-  if (reservation.status !== 'PENDING_APPROVAL') {
-    return res.status(400).json({ error: 'Only pending reservations can be approved.' });
-  }
+app.post('/api/reservations/:id/approve', async (req, res) => {
+  try {
+    const reservation = await db.getReservationById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+    if (reservation.status !== 'PENDING_APPROVAL') {
+      return res.status(400).json({ error: 'Only pending reservations can be approved.' });
+    }
 
-  // RE-CHECK: Ensure no one double-booked the dates while this was pending!
-  if (db.hasDateOverlap(reservation.assetId, reservation.startDate, reservation.endDate)) {
-    return res.status(409).json({ error: 'Conflict: Asset is already reserved for the requested dates by another approved ticket.' });
-  }
+    // RE-CHECK: Ensure no one double-booked the dates while this was pending!
+    const hasOverlap = await db.hasDateOverlap(reservation.assetId, reservation.startDate, reservation.endDate);
+    if (hasOverlap) {
+      return res.status(409).json({ error: 'Conflict: Asset is already reserved for the requested dates by another approved ticket.' });
+    }
 
-  reservation.status = 'APPROVED';
-  res.json({ message: 'Reservation approved successfully.', reservation });
+    const updated = await db.updateReservationStatus(req.params.id, 'APPROVED');
+    res.json({ message: 'Reservation approved successfully.', reservation: updated });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to approve reservation.' });
+  }
 });
 
 // Reject reservation (Admin)
-app.post('/api/reservations/:id/reject', (req, res) => {
-  const reservation = db.getReservationById(req.params.id);
-  if (!reservation) {
-    return res.status(404).json({ error: 'Reservation not found.' });
+app.post('/api/reservations/:id/reject', async (req, res) => {
+  try {
+    const reservation = await db.getReservationById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservation not found.' });
+    }
+    await db.updateReservationStatus(req.params.id, 'REJECTED');
+    res.json({ message: 'Reservation rejected successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to reject reservation.' });
   }
-  reservation.status = 'REJECTED';
-  res.json({ message: 'Reservation rejected successfully.' });
 });
 
 module.exports = app;

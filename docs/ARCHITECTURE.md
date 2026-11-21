@@ -6,7 +6,10 @@ The **Smart Corporate Equipment & Asset Reservation System** is designed to mana
 ## 2. Components
 - **Frontend UI (Presentation Layer)**: Built with Vanilla HTML5, CSS3 (Glassmorphism aesthetics), and JavaScript. Responsible for rendering real-time asset availability, handling user input, performing client-side validation, and asynchronously fetching data from the API.
 - **API Server (Application Layer)**: A Node.js backend using Express.js. Handles core business logic, input sanitization, security validation, and RESTful routing.
-- **Data Store (Data Layer)**: An encapsulated in-memory data access module (`database.js`). Simulates a transactional database providing decoupled methods for `create`, `find`, and `cancel` operations, allowing easy swapping for a persistent SQL/NoSQL DB in production.
+- **Data Store (Data Layer)**: An enterprise-grade, dual-mode persistence architecture (`src/database.js` & `src/db/postgres.js`).
+  - **PostgreSQL Persistent Storage**: Production engine powered by `pg` (Connection Pooling), transactional DDL schemas, timestamp range index optimizations, and ACID consistency.
+  - **CSV / In-Memory Fallback**: Zero-dependency development and testing fallback when `DATABASE_URL` is omitted, using asynchronous atomic file writes (`fs.renameSync`) to ensure zero-friction local evaluations.
+  - **Runtime Auto-Negotiation**: Dynamically selects PostgreSQL when `DATABASE_URL` or `USE_POSTGRES=true` is set, with graceful fallback if the database server is offline. Exposed via `GET /api/system/status`.
 
 ## 3. Data Flow
 1. **User Action**: The user selects an asset and submits a reservation date range via the UI.
