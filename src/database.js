@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
@@ -192,7 +192,7 @@ class CsvDatabase {
 
     return this.reservations.some(r => {
       if (r.assetId !== assetId) return false;
-      if (r.status === 'CANCELLED' || r.status === 'RETURNED') return false;
+      if (r.status === 'CANCELLED' || r.status === 'RETURNED' || r.status === 'REJECTED') return false;
 
       const rStart = r.startDate.getTime();
       const rEnd = r.endDate.getTime();
@@ -215,26 +215,93 @@ class CsvDatabase {
   }
 }
 
-// Unified Database Provider Proxy
+// Resilient Unified Database Provider with Eager Probe & Fault-Tolerant Fallback
 class DatabaseProvider {
   constructor() {
-    this.usePostgres = Boolean(
+    this.requestedPostgres = Boolean(
       process.env.DATABASE_URL ||
       process.env.USE_POSTGRES === 'true'
     );
 
-    if (this.usePostgres) {
+    this.csvEngine = new CsvDatabase();
+    this.postgresEngine = null;
+    this.engine = this.csvEngine;
+    this.engineType = 'CSV';
+    this.probePromise = null;
+
+    if (this.requestedPostgres) {
       try {
-        this.engine = new PostgresDatabase();
-        this.engineType = 'POSTGRESQL';
+        this.postgresEngine = new PostgresDatabase();
       } catch (err) {
-        console.warn('[Database] Failed to initialize PostgreSQL, falling back to CSV store:', err.message);
-        this.engine = new CsvDatabase();
-        this.engineType = 'CSV';
+        console.warn('[Database] Failed to instantiate Postgres driver, using CSV:', err.message);
       }
-    } else {
-      this.engine = new CsvDatabase();
-      this.engineType = 'CSV';
+    }
+  }
+
+  isConnectionError(err) {
+    if (!err) return false;
+    const msg = (err.message || '').toLowerCase();
+    const code = err.code || '';
+    return (
+      code === 'ECONNREFUSED' ||
+      code === 'ENOTFOUND' ||
+      code === 'ETIMEDOUT' ||
+      code === '28P01' || // invalid_password
+      code === '3D000' || // invalid_catalog_name (db does not exist)
+      code === '57P01' || // admin_shutdown
+      code === '57P02' || // crash_shutdown
+      code === '57P03' || // cannot_connect_now
+      msg.includes('econnrefused') ||
+      msg.includes('password authentication failed') ||
+      msg.includes('connection terminated') ||
+      msg.includes('failed to connect') ||
+      msg.includes('timeout')
+    );
+  }
+
+  async ensureEngine() {
+    if (!this.requestedPostgres || !this.postgresEngine) {
+      return this.csvEngine;
+    }
+
+    if (this.probePromise) {
+      return this.probePromise;
+    }
+
+    this.probePromise = (async () => {
+      try {
+        await this.postgresEngine.testConnection();
+        await this.postgresEngine.init();
+        this.engine = this.postgresEngine;
+        this.engineType = 'POSTGRESQL';
+        return this.postgresEngine;
+      } catch (err) {
+        if (this.isConnectionError(err)) {
+          console.warn(`[Database] PostgreSQL unavailable (${err.message}). Gracefully falling back to CSV store.`);
+          this.engine = this.csvEngine;
+          this.engineType = 'CSV';
+          return this.csvEngine;
+        }
+        throw err;
+      }
+    })();
+
+    return this.probePromise;
+  }
+
+  async execute(operationName, fn) {
+    const engine = await this.ensureEngine();
+    try {
+      return await fn(engine);
+    } catch (err) {
+      // If a runtime connection drop occurs while using PostgreSQL, fall back immediately to CSV
+      if (this.engineType === 'POSTGRESQL' && this.isConnectionError(err)) {
+        console.warn(`[Database] PostgreSQL connection dropped during ${operationName} (${err.message}). Falling back to CSV store.`);
+        this.engine = this.csvEngine;
+        this.engineType = 'CSV';
+        return fn(this.csvEngine);
+      }
+      throw err;
     }
   }
 
@@ -243,59 +310,59 @@ class DatabaseProvider {
   }
 
   async getAssets() {
-    return this.engine.getAssets();
+    return this.execute('getAssets', (e) => e.getAssets());
   }
 
   async getAssetById(id) {
-    return this.engine.getAssetById(id);
+    return this.execute('getAssetById', (e) => e.getAssetById(id));
   }
 
   async addAsset(assetData) {
-    return this.engine.addAsset(assetData);
+    return this.execute('addAsset', (e) => e.addAsset(assetData));
   }
 
   async removeAsset(id) {
-    return this.engine.removeAsset(id);
+    return this.execute('removeAsset', (e) => e.removeAsset(id));
   }
 
   async toggleMaintenance(id) {
-    return this.engine.toggleMaintenance(id);
+    return this.execute('toggleMaintenance', (e) => e.toggleMaintenance(id));
   }
 
   async getReservations() {
-    return this.engine.getReservations();
+    return this.execute('getReservations', (e) => e.getReservations());
   }
 
   async getReservationsByUser(userId) {
-    return this.engine.getReservationsByUser(userId);
+    return this.execute('getReservationsByUser', (e) => e.getReservationsByUser(userId));
   }
 
   async getReservationsByAsset(assetId) {
-    return this.engine.getReservationsByAsset(assetId);
+    return this.execute('getReservationsByAsset', (e) => e.getReservationsByAsset(assetId));
   }
 
   async getReservationById(id) {
-    return this.engine.getReservationById(id);
+    return this.execute('getReservationById', (e) => e.getReservationById(id));
   }
 
   async createReservation(reservation) {
-    return this.engine.createReservation(reservation);
+    return this.execute('createReservation', (e) => e.createReservation(reservation));
   }
 
   async cancelReservation(id) {
-    return this.engine.cancelReservation(id);
+    return this.execute('cancelReservation', (e) => e.cancelReservation(id));
   }
 
   async updateReservationStatus(id, status) {
-    return this.engine.updateReservationStatus(id, status);
+    return this.execute('updateReservationStatus', (e) => e.updateReservationStatus(id, status));
   }
 
   async hasDateOverlap(assetId, startDate, endDate) {
-    return this.engine.hasDateOverlap(assetId, startDate, endDate);
+    return this.execute('hasDateOverlap', (e) => e.hasDateOverlap(assetId, startDate, endDate));
   }
 
   async reset() {
-    return this.engine.reset();
+    return this.execute('reset', (e) => e.reset());
   }
 }
 

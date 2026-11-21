@@ -61,14 +61,17 @@ npm test
 - **Secure Handling**: Instead of using vulnerable inline `onclick` attributes, the frontend uses secure JavaScript **Event Listeners** tied to `data-id` attributes for "Tear to Reserve" and "Void Ticket" actions.
 
 ### The Backend (Server-side)
-**Tech Stack**: Node.js, Express.js API, and an In-Memory Data Store.
-- **The Data Store (`database.js`)**: Simulates a real database holding assets and reservations in memory. It contains complex algorithms like `hasDateOverlap()` to check if a requested date range mathematically collides with existing approved reservations.
+**Tech Stack**: Node.js, Express.js REST API, PostgreSQL (Persistent Production Engine), and Resilient CSV/In-Memory Fallback.
+- **The Persistence Architecture (`src/database.js` & `src/db/`)**:
+  - **PostgreSQL Production Mode**: Operates via `pg` connection pooling, ACID transactions, and dedicated database sequences (`asset_id_seq`, `reservation_id_seq`) to ensure thread-safe ID generation. Enforces concurrency protection through both row-level locks (`SELECT ... FOR UPDATE`) and database-level GiST exclusion constraints (`tstzrange`), mathematically eliminating race conditions and double-booking.
+  - **Zero-Dependency CSV Fallback**: An automated fallback engine backed by flat CSV ledgers (`assets.csv`, `reservations.csv`) and atomic temporary-file renames (`atomicWrite`). If PostgreSQL is unconfigured or temporarily offline, the server detects this via an eager connection probe and seamlessly serves requests without interruption.
+  - **Engine Introspection**: `GET /api/system/status` exposes the active persistence engine (`POSTGRESQL` or `CSV`).
 - **The API Gatekeeper (`server.js`)**: When the frontend asks to create a reservation via a `POST /api/reservations` request, the backend runs a gauntlet of strict checks:
    - **XSS Check**: Rejects malicious `<script>` tags in IDs.
    - **Time Check**: Rejects dates in the past, or if End Date < Start Date.
    - **Duration Limit**: Rejects bookings exceeding the asset's maximum allowed days.
-   - **Double-Book Check**: Rejects overlapping dates with a `409 Conflict`.
-   - **Quota Check**: If the user already has 2 active reservations, the **AI-implemented feature** kicks in and silently changes the reservation status to `PENDING_APPROVAL` instead of throwing an error.
+   - **Double-Book Check**: Enforces mutual exclusivity and returns `409 Conflict` on overlap.
+   - **Quota Check**: If the user already has 2 active reservations, the system assigns status `PENDING_APPROVAL` instead of rejecting the request.
 
 ---
 

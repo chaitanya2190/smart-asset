@@ -190,6 +190,12 @@ app.post('/api/reservations', createReservationLimiter, async (req, res) => {
     });
     res.status(201).json(reservation);
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    if (err.message && err.message.includes('already reserved')) {
+      return res.status(409).json({ error: err.message });
+    }
     res.status(500).json({ error: 'Failed to process reservation.' });
   }
 });

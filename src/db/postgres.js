@@ -19,6 +19,16 @@ class PostgresDatabase {
     this.initialized = false;
   }
 
+  async testConnection() {
+    const client = await this.pool.connect();
+    try {
+      await client.query('SELECT 1');
+      return true;
+    } finally {
+      client.release();
+    }
+  }
+
   async query(text, params) {
     return this.pool.query(text, params);
   }
@@ -51,6 +61,12 @@ class PostgresDatabase {
       }
     }
 
+    // Align sequence counters with current data
+    await this.pool.query(`
+      SELECT setval('asset_id_seq', GREATEST(COALESCE((SELECT MAX(NULLIF(regexp_replace(id, '\\D', '', 'g'), '')::int) FROM assets), 0), 4) + 1, false);
+      SELECT setval('reservation_id_seq', COALESCE((SELECT MAX(NULLIF(regexp_replace(id, '\\D', '', 'g'), '')::int) FROM reservations), 0) + 1, false);
+    `);
+
     this.initialized = true;
   }
 
@@ -78,18 +94,14 @@ class PostgresDatabase {
 
   async addAsset(assetData) {
     await this.init();
-    const nextIdRes = await this.pool.query(
-      `SELECT COALESCE(MAX(NULLIF(regexp_replace(id, '\\D', '', 'g'), '')::int), 0) + 1 AS next_id FROM assets`
-    );
-    const newId = `A${nextIdRes.rows[0].next_id}`;
     const duration = parseInt(assetData.maxDuration, 10) || 14;
 
     const query = `
       INSERT INTO assets (id, name, category, status, max_duration)
-      VALUES ($1, $2, $3, 'AVAILABLE', $4)
+      VALUES ('A' || nextval('asset_id_seq'), $1, $2, 'AVAILABLE', $3)
       RETURNING id, name, category, status, max_duration AS "maxDuration"
     `;
-    const { rows } = await this.pool.query(query, [newId, assetData.name, assetData.category, duration]);
+    const { rows } = await this.pool.query(query, [assetData.name, assetData.category, duration]);
     return rows[0];
   }
 
@@ -194,7 +206,7 @@ class PostgresDatabase {
     const query = `
       SELECT 1 FROM reservations
       WHERE asset_id = $1
-        AND status NOT IN ('CANCELLED', 'RETURNED')
+        AND status NOT IN ('CANCELLED', 'RETURNED', 'REJECTED')
         AND $2::timestamptz < end_date
         AND $3::timestamptz > start_date
       LIMIT 1
@@ -203,38 +215,88 @@ class PostgresDatabase {
     return rows.length > 0;
   }
 
+  /**
+   * Concurrency-safe reservation creation using an ACID transaction,
+   * row-level locking on the asset (FOR UPDATE), and database sequences.
+   */
   async createReservation(reservation) {
     await this.init();
-    const nextIdRes = await this.pool.query(
-      `SELECT COALESCE(MAX(NULLIF(regexp_replace(id, '\\D', '', 'g'), '')::int), 0) + 1 AS next_id FROM reservations`
-    );
-    const newId = `R${nextIdRes.rows[0].next_id}`;
     const start = new Date(reservation.startDate);
     const end = new Date(reservation.endDate);
     const status = reservation.status || 'APPROVED';
 
-    const query = `
-      INSERT INTO reservations (id, asset_id, user_id, start_date, end_date, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      RETURNING id, asset_id AS "assetId", user_id AS "userId",
-                start_date AS "startDate", end_date AS "endDate",
-                status, created_at AS "createdAt"
-    `;
-    const { rows } = await this.pool.query(query, [
-      newId,
-      reservation.assetId,
-      reservation.userId,
-      start.toISOString(),
-      end.toISOString(),
-      status
-    ]);
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    return {
-      ...rows[0],
-      startDate: new Date(rows[0].startDate),
-      endDate: new Date(rows[0].endDate),
-      createdAt: new Date(rows[0].createdAt)
-    };
+      // 1. Row-level lock on the asset to serialize concurrent booking requests for the same asset
+      const assetRes = await client.query('SELECT * FROM assets WHERE id = $1 FOR UPDATE', [reservation.assetId]);
+      if (assetRes.rows.length === 0) {
+        const notFoundErr = new Error('Asset not found.');
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
+      }
+
+      if (assetRes.rows[0].status === 'MAINTENANCE') {
+        const maintErr = new Error('Asset is currently in maintenance.');
+        maintErr.statusCode = 400;
+        throw maintErr;
+      }
+
+      // 2. Concurrency-safe overlap verification within the locked transaction
+      const overlapRes = await client.query(
+        `SELECT 1 FROM reservations
+         WHERE asset_id = $1
+           AND status NOT IN ('CANCELLED', 'RETURNED', 'REJECTED')
+           AND $2::timestamptz < end_date
+           AND $3::timestamptz > start_date
+         LIMIT 1`,
+        [reservation.assetId, start.toISOString(), end.toISOString()]
+      );
+
+      if (overlapRes.rows.length > 0) {
+        const conflictErr = new Error('Asset is already reserved for the requested dates.');
+        conflictErr.statusCode = 409;
+        throw conflictErr;
+      }
+
+      // 3. Insert reservation using sequence-generated ID
+      const query = `
+        INSERT INTO reservations (id, asset_id, user_id, start_date, end_date, status, created_at)
+        VALUES ('R' || nextval('reservation_id_seq'), $1, $2, $3, $4, $5, NOW())
+        RETURNING id, asset_id AS "assetId", user_id AS "userId",
+                  start_date AS "startDate", end_date AS "endDate",
+                  status, created_at AS "createdAt"
+      `;
+      const { rows } = await client.query(query, [
+        reservation.assetId,
+        reservation.userId,
+        start.toISOString(),
+        end.toISOString(),
+        status
+      ]);
+
+      await client.query('COMMIT');
+
+      return {
+        ...rows[0],
+        startDate: new Date(rows[0].startDate),
+        endDate: new Date(rows[0].endDate),
+        createdAt: new Date(rows[0].createdAt)
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+
+      // Handle PostgreSQL GiST exclusion constraint violation (code 23P01) or unique violation (23505)
+      if (err.code === '23P01' || err.code === '23505') {
+        const conflictErr = new Error('Asset is already reserved for the requested dates.');
+        conflictErr.statusCode = 409;
+        throw conflictErr;
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async cancelReservation(id) {

@@ -4,11 +4,17 @@ const app = require('../src/server');
 
 describe('PostgreSQL Database Engine & Architecture Tests', () => {
   let mockPool;
+  let mockClient;
   let db;
 
   beforeEach(() => {
+    mockClient = {
+      query: jest.fn(),
+      release: jest.fn()
+    };
     mockPool = {
       query: jest.fn(),
+      connect: jest.fn().mockResolvedValue(mockClient),
       end: jest.fn().mockResolvedValue()
     };
     db = new PostgresDatabase({ connectionString: 'postgresql://mock:mock@localhost:5432/mock_db' });
@@ -19,73 +25,127 @@ describe('PostgreSQL Database Engine & Architecture Tests', () => {
     jest.clearAllMocks();
   });
 
-  test('init() applies schema DDL and seeds initial assets when empty', async () => {
+  test('init() applies schema DDL and aligns sequence counters with existing data', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [] }) // schema DDL
       .mockResolvedValueOnce({ rows: [{ count: 0 }] }) // count query
-      .mockResolvedValue({ rows: [] }); // inserts
+      .mockResolvedValueOnce({ rows: [] }) // insert A1
+      .mockResolvedValueOnce({ rows: [] }) // insert A2
+      .mockResolvedValueOnce({ rows: [] }) // insert A3
+      .mockResolvedValueOnce({ rows: [] }) // insert A4
+      .mockResolvedValueOnce({ rows: [] }); // setval sequences
 
     await db.init();
 
     expect(mockPool.query).toHaveBeenCalledWith(expect.stringContaining('CREATE TABLE IF NOT EXISTS assets'));
     expect(mockPool.query).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'));
+    expect(mockPool.query).toHaveBeenCalledWith(expect.stringContaining("setval('asset_id_seq'"));
     expect(db.initialized).toBe(true);
   });
 
-  test('getAssets() retrieves sorted assets mapped with maxDuration', async () => {
+  test('addAsset() uses sequence nextval for thread-safe atomic ID generation', async () => {
     db.initialized = true;
     mockPool.query.mockResolvedValueOnce({
-      rows: [
-        { id: 'A1', name: 'MacBook Pro 16"', category: 'Computing', status: 'AVAILABLE', maxDuration: 14 },
-        { id: 'A2', name: 'Dell UltraSharp 27"', category: 'Displays', status: 'AVAILABLE', maxDuration: 30 }
-      ]
+      rows: [{ id: 'A5', name: '4K Drone', category: 'Photography', status: 'AVAILABLE', maxDuration: 7 }]
     });
 
-    const assets = await db.getAssets();
-    expect(assets).toHaveLength(2);
-    expect(assets[0].id).toBe('A1');
-    expect(assets[0].maxDuration).toBe(14);
-  });
-
-  test('hasDateOverlap() executes SQL range query and returns true on overlap', async () => {
-    db.initialized = true;
-    mockPool.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
-
-    const overlap = await db.hasDateOverlap('A1', '2026-09-01', '2026-09-05');
-    expect(overlap).toBe(true);
+    const asset = await db.addAsset({ name: '4K Drone', category: 'Photography', maxDuration: 7 });
+    expect(asset.id).toBe('A5');
     expect(mockPool.query).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT 1 FROM reservations'),
-      expect.arrayContaining(['A1'])
+      expect.stringContaining("VALUES ('A' || nextval('asset_id_seq')"),
+      expect.arrayContaining(['4K Drone', 'Photography', 7])
     );
   });
 
-  test('createReservation() computes incremental ID and returns valid dates', async () => {
+  test('createReservation() executes within an ACID transaction with row-level locks (FOR UPDATE)', async () => {
     db.initialized = true;
-    mockPool.query
-      .mockResolvedValueOnce({ rows: [{ next_id: 5 }] })
+    // 1. BEGIN
+    // 2. Lock asset FOR UPDATE
+    // 3. Check overlap FOR UPDATE
+    // 4. INSERT reservation with sequence
+    // 5. COMMIT
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'A1', status: 'AVAILABLE' }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // overlap check -> none
       .mockResolvedValueOnce({
         rows: [{
-          id: 'R5',
+          id: 'R10',
           assetId: 'A1',
-          userId: 'DEV_USER',
+          userId: 'CONCURRENT_USER',
           startDate: '2026-09-01T00:00:00.000Z',
           endDate: '2026-09-05T00:00:00.000Z',
           status: 'APPROVED',
           createdAt: '2026-08-30T00:00:00.000Z'
         }]
-      });
+      }) // INSERT
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
     const res = await db.createReservation({
       assetId: 'A1',
-      userId: 'DEV_USER',
+      userId: 'CONCURRENT_USER',
       startDate: '2026-09-01',
       endDate: '2026-09-05'
     });
 
-    expect(res.id).toBe('R5');
-    expect(res.status).toBe('APPROVED');
-    expect(res.startDate).toBeInstanceOf(Date);
-    expect(res.endDate).toBeInstanceOf(Date);
+    expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM assets WHERE id = $1 FOR UPDATE'), ['A1']);
+    expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining("nextval('reservation_id_seq')"), expect.anything());
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+    expect(mockClient.release).toHaveBeenCalled();
+    expect(res.id).toBe('R10');
+  });
+
+  test('createReservation() rolls back and throws 409 conflict when overlap is detected in transaction', async () => {
+    db.initialized = true;
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'A1', status: 'AVAILABLE' }] }) // Lock
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // Overlap found!
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+    await expect(
+      db.createReservation({
+        assetId: 'A1',
+        userId: 'COLLIDING_USER',
+        startDate: '2026-09-01',
+        endDate: '2026-09-05'
+      })
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('already reserved')
+    });
+
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  test('createReservation() catches PostgreSQL exclusion violation (code 23P01) and returns 409', async () => {
+    db.initialized = true;
+    const exclusionErr = new Error('conflicting key value violates exclusion constraint "no_overlapping_reservations"');
+    exclusionErr.code = '23P01';
+
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'A1', status: 'AVAILABLE' }] }) // Lock
+      .mockResolvedValueOnce({ rows: [] }) // Overlap check passes race window
+      .mockRejectedValueOnce(exclusionErr) // DB exclusion constraint triggers!
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+    await expect(
+      db.createReservation({
+        assetId: 'A1',
+        userId: 'RACING_USER',
+        startDate: '2026-09-01',
+        endDate: '2026-09-05'
+      })
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining('already reserved')
+    });
+
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(mockClient.release).toHaveBeenCalled();
   });
 
   test('cancelReservation() runs update on reservations status', async () => {
